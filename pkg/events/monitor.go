@@ -16,7 +16,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/bobbydrake/flux-reconcile/pkg/output"
+	"github.com/junovy-hosting/flux-reconcile/pkg/output"
 )
 
 type Monitor struct {
