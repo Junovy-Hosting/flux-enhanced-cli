@@ -1,18 +1,41 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
+	"regexp"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/junovy-hosting/flux-enhanced-cli/pkg/events"
 	"github.com/junovy-hosting/flux-enhanced-cli/pkg/output"
 )
+
+// Kubernetes client warning pattern: W1123 13:40:53.387945   52532 warnings.go:70] message
+var kubernetesWarningRegex = regexp.MustCompile(`^W\d+\s+\d+:\d+:\d+\.\d+\s+\d+\s+\S+:\d+\]\s+(.+)$`)
+
+func processStderr(reader io.Reader) {
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Check if this is a Kubernetes client warning
+		if matches := kubernetesWarningRegex.FindStringSubmatch(line); matches != nil {
+			// Format the warning nicely
+			output.PrintWarning(matches[1])
+		} else if strings.TrimSpace(line) != "" {
+			// Pass through other stderr output as-is
+			fmt.Fprintf(os.Stderr, "%s\n", line)
+		}
+	}
+}
 
 func main() {
 	var (
@@ -69,9 +92,25 @@ func main() {
 	// Run command and stream output
 	output.PrintCommand(cmd.Args...)
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
+	// Intercept stderr to format warnings nicely
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating stderr pipe: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error starting flux: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Process stderr in a goroutine
+	go processStderr(stderrPipe)
+
+	// Wait for command to complete
+	if err := cmd.Wait(); err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			os.Exit(exitErr.ExitCode())
 		}

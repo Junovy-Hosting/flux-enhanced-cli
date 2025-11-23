@@ -87,3 +87,11 @@ func PrintMain(emoji, message string, color string) {
 	}
 	fmt.Printf("%s%s%s %s%s\n", color, emoji, ColorReset, message, ColorReset)
 }
+
+func PrintWarning(message string) {
+	if !isTerminal() {
+		fmt.Printf("│ ⚠️  %s\n", message)
+		return
+	}
+	fmt.Printf("%s│ %s⚠️  %s%s\n", ColorSubLog, ColorYellow, message, ColorReset)
+}
