@@ -6,7 +6,8 @@ import (
 	"strings"
 )
 
-const (
+// Color codes
+var (
 	ColorReset   = "\033[0m"
 	ColorBold    = "\033[1m"
 	ColorBlue    = "\033[34m"
@@ -18,7 +19,26 @@ const (
 	ColorSubLog  = "\033[38;5;244m"
 )
 
+var colorsDisabled = false
+
+// DisableColors turns off colored output
+func DisableColors() {
+	colorsDisabled = true
+	ColorReset = ""
+	ColorBold = ""
+	ColorBlue = ""
+	ColorCyan = ""
+	ColorGreen = ""
+	ColorYellow = ""
+	ColorRed = ""
+	ColorMagenta = ""
+	ColorSubLog = ""
+}
+
 func isTerminal() bool {
+	if colorsDisabled {
+		return false
+	}
 	fileInfo, _ := os.Stdout.Stat()
 	return (fileInfo.Mode() & os.ModeCharDevice) != 0
 }
@@ -94,4 +114,12 @@ func PrintWarning(message string) {
 		return
 	}
 	fmt.Printf("%s│ %s⚠️  %s%s\n", ColorSubLog, ColorYellow, message, ColorReset)
+}
+
+func PrintStatus(message string) {
+	if !isTerminal() {
+		fmt.Printf("│ ℹ️  %s\n", message)
+		return
+	}
+	fmt.Printf("%s│ ℹ️  %s%s\n", ColorSubLog, message, ColorReset)
 }
